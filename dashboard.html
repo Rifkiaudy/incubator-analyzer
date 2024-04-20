@@ -162,7 +162,17 @@
 
       dataGridItems.forEach((item) => (item.textContent = ""));
 
-      let newData = { timestamp: new Date().toLocaleString() };
+      const options = {
+        day: 'numeric',
+        month: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+        second: 'numeric',
+        hour12: false, // Use 24-hour format
+      };
+
+      let newData = { timestamp: new Date().toLocaleString('en-US', options) };
 
       dataArray.forEach((item) => {
         const [label, value] = item.split("=");
@@ -216,10 +226,20 @@
       tableData.forEach((data) => {
         const row = document.createElement("tr");
 
+        const options = {
+          day: 'numeric',
+          month: 'numeric',
+          year: 'numeric',
+          hour: 'numeric',
+          minute: 'numeric',
+          second: 'numeric',
+          hour12: false // Use 24-hour format
+        };
+
         // Splitting Timestamp into Date and Time
-        const timestamp = new Date(data.timestamp);
-        const date = timestamp.toLocaleDateString();
-        const time = timestamp.toLocaleTimeString();
+        const timestamp = new Date(data.timestamp).toLocaleDateString("en-US", options).toString().split(', ');
+        const date = timestamp[0];
+        const time = timestamp[1];
 
         // Creating separate cells for Date and Time
         const dateCell = document.createElement("td");
@@ -384,39 +404,51 @@
       });
 
     document.getElementById("importBtn").addEventListener("change", function (e) {
-      // if (tableData.length == 0) {
-      //   savingData = !savingData;
-      //   generateRandomDataString();
-      //   savingData = !savingData;
-      // }
+      if (tableData.length == 0) {
+        savingData = !savingData;
+        generateRandomDataString();
+        savingData = !savingData;
+      }
 
       const file = e.target.files[0];
       if (!file) return;
       const reader = new FileReader();
       reader.onload = function (event) {
         const csvData = event.target.result;
-        const rows = csvData.split("\n").slice(1); // Skip header row
+        // const rows = csvData.split("\n").slice(1); // Skip header row
+        const rows = csvData.split("\n");
         tableData = rows.map((row) => {
           const columns = row.split(",");
-          const newData = {};
+          let newData = {};
           for (let i = 0; i < columns.length; i++) {
+            if (i == 1) {
+              continue;
+            }
             if (i === 0) {
               // If it's the first column (Date), set it as the "timestamp"
-              newData.timestamp = columns[i];
-            } else if (i === 1) {
-              // If it's the second column (Time), parse and set it separately
-              const [hours, minutes, seconds] = columns[i].split(":").map(Number);
-              const timestamp = new Date(newData.timestamp);
-              timestamp.setHours(hours);
-              timestamp.setMinutes(minutes);
-              timestamp.setSeconds(seconds);
-              newData.timestamp = timestamp.toLocaleString(); // Update timestamp with parsed time
+              const timestamp = columns[0] + columns[1]
+              const [date, time] = timestamp.split(" "); // Split date and time
+              const [day, month, year] = date.split("/").map(Number); // Parse date
+              const [hours, minutes, seconds] = time.split(":").map(Number); // Parse time
+              // Format date components with leading zeros if needed
+              const formattedDate = `${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}/${year}`;
+
+              // Format time components with leading zeros if needed
+              const formattedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+              // Combine date and time components
+              const formattedTimestamp = `${formattedDate}, ${formattedTime}`;
+              
+              newData = {
+                timestamp: formattedTimestamp
+              };
             } else {
               // For other columns, map them to respective keys
-              const tableKeys = Object.keys(tableData[0] || {}); // Ensure tableData[0] is defined
-              if (i - 1 < tableKeys.length) {
-                newData[tableKeys[i - 1]] = columns[i];
-              }
+              newData[i] = columns[i];
+              // const tableKeys = Object.keys(tableData[0] || {}); // Ensure tableData[0] is defined
+              // if (i < tableKeys.length) {
+              //   newData[tableKeys[i]] = columns[i];
+              // }
             }
           }
           return newData;
